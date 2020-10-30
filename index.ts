@@ -2,8 +2,10 @@ import fastify from 'fastify';
 import dotenv from 'dotenv';
 import fetch from 'node-fetch';
 import { IncomingMessage } from 'http';
+import loggerHouse from 'logger-house';
 
 dotenv.config();
+loggerHouse.configure(null);
 
 type RequestBody = {
     title: string | undefined,
@@ -36,6 +38,9 @@ const postData = async (body: RequestBody) => {
         },
         body: JSON.stringify(sendData)
     });
+    if (res.ok) {
+        loggerHouse.info(`postData type:${body.url ? 'link' : 'note'} dist:${deviceId} title:${body.title} body:${body.body} url:${body.url}`);
+    }
     return res.ok;
 };
 const server = fastify({
@@ -63,5 +68,5 @@ server.listen(3000, '0.0.0.0', (err, address) => {
         process.exit(1);
     }
 
-    console.log(`Server listening at ${address}`);
+    loggerHouse.log(`Server listening at ${address}`);
 });

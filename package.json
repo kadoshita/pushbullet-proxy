@@ -27,6 +27,7 @@
   "dependencies": {
     "dotenv": "^8.2.0",
     "fastify": "^3.7.0",
+    "logger-house": "0.0.7",
     "node-fetch": "^2.6.1"
   }
 }
