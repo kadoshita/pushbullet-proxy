@@ -4,6 +4,7 @@ import fetch from 'node-fetch';
 import loggerHouse from 'logger-house';
 import fastifyMultipart from 'fastify-multipart';
 import FormData from 'form-data';
+import { IncomingMessage } from 'http';
 
 dotenv.config();
 loggerHouse.configure(null);
@@ -79,7 +80,18 @@ const postFile = async (file: Buffer, filename: string) => {
     await postData(postBody);
 };
 
-const server = fastify();
+const server = fastify({
+    rewriteUrl: (req: IncomingMessage): string => {
+        const { url } = req;
+        if (!url) {
+            return '/';
+        } else if (/^.*\/file$/.test(url)) {
+            return '/file';
+        } else {
+            return '/';
+        }
+    }
+});
 
 server.register(fastifyMultipart);
 
