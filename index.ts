@@ -1,16 +1,18 @@
 import fastify from 'fastify';
 import dotenv from 'dotenv';
 import fetch from 'node-fetch';
-import { IncomingMessage } from 'http';
 import loggerHouse from 'logger-house';
+import fastifyMultipart from 'fastify-multipart';
+import FormData from 'form-data';
 
 dotenv.config();
 loggerHouse.configure(null);
 
 type RequestBody = {
-    title: string | undefined,
-    body: string | undefined,
-    url: string | undefined
+    title?: string | undefined,
+    body?: string | undefined,
+    url?: string | undefined,
+    filename?: string | undefined
 };
 
 const getDeviceID = async () => {
@@ -28,8 +30,14 @@ const getDeviceID = async () => {
 const postData = async (body: RequestBody) => {
     const deviceId = await getDeviceID();
     const sendData = body as any;
-    sendData['type'] = body.url ? 'link' : 'note';
+    sendData['type'] = body.filename ? 'file' : body.url ? 'link' : 'note';
     sendData['device_iden'] = deviceId;
+    if (body.filename) {
+        sendData['file_name'] = body.filename;
+        sendData['file_type'] = 'image/jpeg';
+        sendData['file_url'] = body.url;
+        delete sendData['url'];
+    }
     const res = await fetch('https://api.pushbullet.com/v2/pushes', {
         method: 'POST',
         headers: {
@@ -39,15 +47,41 @@ const postData = async (body: RequestBody) => {
         body: JSON.stringify(sendData)
     });
     if (res.ok) {
-        loggerHouse.info(`postData type:${body.url ? 'link' : 'note'} dist:${deviceId} title:${body.title} body:${body.body} url:${body.url}`);
+        loggerHouse.info(`postData type:${body.filename ? 'file' : body.url ? 'link' : 'note'} dist:${deviceId} title:${body.title} body:${body.body} url:${body.url}`);
     }
     return res.ok;
 };
-const server = fastify({
-    rewriteUrl: (req: IncomingMessage): string => {
-        return '/';
-    }
-});
+const postFile = async (file: Buffer, filename: string) => {
+    const uploadRequestRes = await fetch('https://api.pushbullet.com/v2/upload-request', {
+        method: 'POST',
+        headers: {
+            'Access-Token': process.env.PUSHBULLET_ACCESS_TOKEN || '',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            file_name: filename,
+            file_type: 'image/jpeg'
+        })
+    });
+    const uploadRequestResJson = await uploadRequestRes.json();
+    const uploadUrl = uploadRequestResJson.upload_url;
+    const fileUrl = uploadRequestResJson.file_url;
+    const form = new FormData();
+    form.append('file', file);
+    const uploadFileRes = await fetch(uploadUrl, {
+        method: 'POST',
+        body: form
+    });
+    const postBody: RequestBody = {
+        filename: filename,
+        url: fileUrl
+    };
+    await postData(postBody);
+};
+
+const server = fastify();
+
+server.register(fastifyMultipart);
 
 server.get('/', async (request, reply) => {
     return 'OK';
@@ -60,6 +94,14 @@ server.post('/', async (request, reply) => {
     }
     postData(body);
     return reply.code(200).send();
+});
+
+server.post('/file', async (request, reply) => {
+    const data = await request.file();
+    loggerHouse.info(`postFile filename:${data.filename}`);
+    const fileBuffer = await data.toBuffer();
+    await postFile(fileBuffer, data.filename);
+    return reply.send();
 });
 
 server.listen(process.env.PORT || 3000, '0.0.0.0', (err, address) => {
