@@ -29,6 +29,7 @@
     "dotenv": "^8.2.0",
     "fastify": "^3.7.0",
     "fastify-multipart": "^3.3.1",
+    "file-type": "^16.0.1",
     "form-data": "^3.0.0",
     "logger-house": "0.0.7",
     "node-fetch": "^2.6.1"

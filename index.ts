@@ -4,6 +4,7 @@ import fetch from 'node-fetch';
 import loggerHouse from 'logger-house';
 import fastifyMultipart from 'fastify-multipart';
 import FormData from 'form-data';
+import FileType from 'file-type';
 import { IncomingMessage } from 'http';
 
 dotenv.config();
@@ -52,7 +53,7 @@ const postData = async (body: RequestBody) => {
     }
     return res.ok;
 };
-const postFile = async (file: Buffer, filename: string) => {
+const postFile = async (file: Buffer, filename: string, mime: string) => {
     const uploadRequestRes = await fetch('https://api.pushbullet.com/v2/upload-request', {
         method: 'POST',
         headers: {
@@ -61,7 +62,7 @@ const postFile = async (file: Buffer, filename: string) => {
         },
         body: JSON.stringify({
             file_name: filename,
-            file_type: 'image/jpeg'
+            file_type: mime
         })
     });
     const uploadRequestResJson = await uploadRequestRes.json();
@@ -110,9 +111,10 @@ server.post('/', async (request, reply) => {
 
 server.post('/file', async (request, reply) => {
     const data = await request.file();
-    loggerHouse.info(`postFile filename:${data.filename}`);
     const fileBuffer = await data.toBuffer();
-    await postFile(fileBuffer, data.filename);
+    const type = await FileType.fromBuffer(fileBuffer);
+    loggerHouse.info(`postFile filename:${data.filename} type:${type?.mime}`);
+    await postFile(fileBuffer, data.filename, type?.mime || 'plain/text');
     return reply.send();
 });
 
