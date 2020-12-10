@@ -12,3 +12,8 @@ $ curl -X POST -H 'Content-Type:application/json' http://localhost:3000/ -d '{"b
 ```sh
 $ curl -X POST -H 'Content-Type:application/json' http://localhost:3000/ -d '{"url":"http://example.com"}'
 ```
+
+## ファイルを送る
+```sh
+$ curl -X POST -F file=@example.png http://localhost:3000/file
+```
